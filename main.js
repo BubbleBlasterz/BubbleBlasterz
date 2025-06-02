@@ -5,9 +5,111 @@ import { LightingSystem } from './lighting.js';
 import { UISystem } from './ui.js';
 import { CollisionSystem } from './collision.js';
 import { NetworkSystem } from './networking.js';
+import { MapSystem } from './maps.js';
+
+class SimpleGameModeSystem {
+  constructor(game) {
+    this.game = game;
+    this.currentMode = 'ffa';
+    this.gameTimer = 0;
+    this.gameTimeLimit = 600;
+    this.isGameActive = true;
+    this.teams = {
+      red: { score: 0, players: new Set() },
+      blue: { score: 0, players: new Set() }
+    };
+    this.playerTeam = null;
+  }
+
+  setGameMode(mode) {
+    this.currentMode = mode;
+    this.resetGame();
+  }
+
+  resetGame() {
+    this.gameTimer = 0;
+    this.isGameActive = true;
+    
+    if (this.currentMode === 'tdm') {
+      this.teams.red.score = 0;
+      this.teams.blue.score = 0;
+      this.assignPlayerToTeam();
+    }
+    
+    this.game.ui.updateGameMode(this.currentMode);
+    this.respawnPlayer();
+  }
+
+  assignPlayerToTeam() {
+    this.playerTeam = Math.random() < 0.5 ? 'red' : 'blue';
+    this.teams[this.playerTeam].players.add(this.game.network?.playerId || 'local');
+    this.game.ui.updateTeam(this.playerTeam);
+  }
+
+  switchTeam() {
+    if (this.currentMode !== 'tdm') return;
+    
+    if (this.playerTeam) {
+      this.teams[this.playerTeam].players.delete(this.game.network?.playerId || 'local');
+    }
+    
+    this.playerTeam = this.playerTeam === 'red' ? 'blue' : 'red';
+    this.teams[this.playerTeam].players.add(this.game.network?.playerId || 'local');
+    
+    this.game.ui.updateTeam(this.playerTeam);
+    this.respawnPlayer();
+  }
+
+  onPlayerKill(killerPlayerId, victimPlayerId) {
+    if (!this.isGameActive || this.currentMode !== 'tdm') return;
+    
+    const killerTeam = this.getPlayerTeam(killerPlayerId);
+    if (killerTeam) {
+      this.teams[killerTeam].score++;
+      this.game.ui.updateTeamScores(this.teams.red.score, this.teams.blue.score);
+    }
+  }
+
+  getPlayerTeam(playerId) {
+    if (this.teams.red.players.has(playerId)) return 'red';
+    if (this.teams.blue.players.has(playerId)) return 'blue';
+    return null;
+  }
+
+  respawnPlayer() {
+    const spawnTeam = this.currentMode === 'tdm' ? this.playerTeam : 'ffa';
+    const spawnPoint = this.game.maps.getSpawnPoint(spawnTeam);
+    
+    if (this.game.controls) {
+      this.game.controls.getObject().position.copy(spawnPoint);
+      this.game.verticalVelocity = 0;
+      this.game.velocity.set(0, 0, 0);
+    }
+  }
+
+  update(delta) {
+    if (!this.isGameActive) return;
+    
+    this.gameTimer += delta;
+    this.game.ui.updateGameTimer(this.gameTimeLimit - this.gameTimer);
+    
+    if (this.gameTimer >= this.gameTimeLimit) {
+      this.endGame();
+    }
+  }
+
+  endGame(winner = null) {
+    this.isGameActive = false;
+    this.game.ui.showGameEnd(winner ? `${winner} team wins!` : 'Time\'s up!');
+    
+    setTimeout(() => {
+      this.resetGame();
+    }, 10000);
+  }
+}
 
 export class BubbleBlasterz {
-  constructor(isMultiplayer = false, hostId = null, playerName = 'Player') {
+  constructor(isMultiplayer = false, hostId = null, playerName = 'Player', gameMode = 'ffa', mapName = 'warehouse') {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -30,8 +132,10 @@ export class BubbleBlasterz {
     
     this.ui = new UISystem();
     this.lighting = new LightingSystem(this.scene);
-    this.weapons = new WeaponSystem(this.scene, this.camera, this.ui);
     this.collision = new CollisionSystem(this.scene);
+    this.maps = new MapSystem(this.scene, this.collision);
+    this.gameModes = new SimpleGameModeSystem(this);
+    this.weapons = new WeaponSystem(this.scene, this.camera, this.ui);
     
     if (this.isMultiplayer) {
       this.network = new NetworkSystem(this, this.playerName);
@@ -41,6 +145,9 @@ export class BubbleBlasterz {
         this.network.initializeAsHost();
       }
     }
+    
+    this.gameModes.setGameMode(gameMode);
+    this.maps.loadMap(mapName);
     
     this.moveForward = false;
     this.moveBackward = false;
@@ -84,10 +191,8 @@ export class BubbleBlasterz {
     this.controls = new PointerLockControls(this.camera, document.body);
     this.scene.add(this.controls.getObject());
     this.controls.getObject().position.set(0, this.groundLevel, 0);
-
-    this.setupEnvironment();
     
-    if (!this.isMultiplayer) {
+    if (!this.isMultiplayer && this.gameModes.currentMode === 'ffa') {
       this.spawnEnemies();
     }
     
@@ -96,136 +201,29 @@ export class BubbleBlasterz {
     this.ui.updateAmmo(this.weapons.getCurrentWeapon().ammo, this.weapons.getCurrentWeapon().maxAmmo);
     this.ui.updateWeapon(this.weapons.getCurrentWeapon().name, this.weapons.currentWeapon);
     this.ui.updateKillsDeaths(this.kills, this.deaths);
+    this.ui.updateMapInfo(this.maps.currentMap);
+    
+    this.gameModes.respawnPlayer();
     
     this.animate();
   }
 
-  setupEnvironment() {
-    const groundGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
-    const groundMaterial = new THREE.MeshLambertMaterial({ 
-      color: 0x556B2F,
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-
-    this.createWalls();
-    this.createObstacles();
-  }
-
-  createWalls() {
-    const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
-    const wallGeometry = new THREE.BoxGeometry(200, 20, 2);
-    
-    const positions = [
-      { x: 0, z: 100 },
-      { x: 0, z: -100 },
-      { x: 100, z: 0 },
-      { x: -100, z: 0 }
-    ];
-    
-    positions.forEach((pos, index) => {
-      const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-      wall.position.set(pos.x, 10, pos.z);
-      if (index > 1) wall.rotation.y = Math.PI / 2;
-      wall.castShadow = true;
-      wall.receiveShadow = true;
-      this.scene.add(wall);
-      this.collision.addCollisionObject(wall);
-    });
-  }
-
-  createObstacles() {
-    const materials = [
-      new THREE.MeshLambertMaterial({ color: 0x8B4513 }),
-      new THREE.MeshLambertMaterial({ color: 0x654321 }),
-      new THREE.MeshLambertMaterial({ color: 0x2F4F4F })
-    ];
-    
-    for (let i = 0; i < 15; i++) {
-      const boxGeometry = new THREE.BoxGeometry(
-        Math.random() * 5 + 2,
-        Math.random() * 8 + 2,
-        Math.random() * 5 + 2
-      );
-      const box = new THREE.Mesh(boxGeometry, materials[Math.floor(Math.random() * materials.length)]);
-      box.position.set(
-        (Math.random() - 0.5) * 150,
-        boxGeometry.parameters.height / 2,
-        (Math.random() - 0.5) * 150
-      );
-      box.castShadow = true;
-      box.receiveShadow = true;
-      this.scene.add(box);
-      this.collision.addCollisionObject(box);
-    }
-  }
-
   spawnEnemies() {
-    const enemyMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
     const enemyGeometry = new THREE.SphereGeometry(1, 8, 6);
+    const enemyMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
     
     for (let i = 0; i < 5; i++) {
       const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
       enemy.position.set(
-        (Math.random() - 0.5) * 100,
-        1,
-        (Math.random() - 0.5) * 100
+        (Math.random() - 0.5) * 80,
+        2,
+        (Math.random() - 0.5) * 80
       );
       enemy.castShadow = true;
-      enemy.userData = { 
-        health: 100,
-        speed: 0.5,
-        isEnemy: true
-      };
-      this.enemies.push(enemy);
+      enemy.userData = { health: 100, speed: 3 };
       this.scene.add(enemy);
+      this.enemies.push(enemy);
     }
-  }
-
-  takeDamage(damage, fromPlayer = null) {
-    if (this.isDead) return;
-    
-    this.health -= damage;
-    this.ui.updateHealth(this.health);
-    
-    if (this.health <= 0) {
-      this.die(fromPlayer);
-    }
-  }
-
-  die(killerName = null) {
-    this.isDead = true;
-    this.health = 0;
-    this.deaths++;
-    this.ui.updateKillsDeaths(this.kills, this.deaths);
-    this.ui.showDeathScreen(this.respawnTime);
-    this.respawnTimer = this.respawnTime;
-    
-    if (this.network) {
-      this.network.sendDeath(killerName);
-    }
-    
-    if (killerName) {
-      this.ui.showKillFeed(`You were killed by ${killerName}!`, 3000);
-    }
-  }
-
-  respawn() {
-    this.isDead = false;
-    this.health = this.maxHealth;
-    this.ui.updateHealth(this.health);
-    this.ui.hideDeathScreen();
-    
-    this.controls.getObject().position.set(
-      (Math.random() - 0.5) * 50,
-      this.groundLevel,
-      (Math.random() - 0.5) * 50
-    );
-    
-    this.verticalVelocity = 0;
-    this.velocity.set(0, 0, 0);
   }
 
   setupEventListeners() {
@@ -248,6 +246,23 @@ export class BubbleBlasterz {
           if (this.isMultiplayer) {
             this.ui.toggleScoreboard();
           }
+          break;
+        case 'KeyT':
+          if (this.gameModes.currentMode === 'tdm') {
+            this.gameModes.switchTeam();
+          }
+          break;
+        case 'KeyM':
+          const maps = this.maps.getAvailableMaps();
+          const currentIndex = maps.indexOf(this.maps.currentMap);
+          const nextIndex = (currentIndex + 1) % maps.length;
+          this.maps.loadMap(maps[nextIndex]);
+          this.ui.updateMapInfo(maps[nextIndex]);
+          this.gameModes.respawnPlayer();
+          break;
+        case 'KeyG':
+          const newMode = this.gameModes.currentMode === 'ffa' ? 'tdm' : 'ffa';
+          this.gameModes.setGameMode(newMode);
           break;
         case 'ShiftLeft':
           if (this.moveForward && !this.isCrouching && this.isOnGround() && !this.isSliding) {
@@ -378,66 +393,66 @@ export class BubbleBlasterz {
     return this.walkSpeed;
   }
 
-updateMovement(delta) {
-  if (this.isDead) return;
-  
-  if (!this.isOnGround()) {
-    this.verticalVelocity += this.gravity * delta;
-  } else {
-    if (this.verticalVelocity < 0) {
+  updateMovement(delta) {
+    if (this.isDead) return;
+    
+    if (!this.isOnGround()) {
+      this.verticalVelocity += this.gravity * delta;
+    } else {
+      if (this.verticalVelocity < 0) {
+        this.verticalVelocity = 0;
+        this.canJump = true;
+      }
+    }
+
+    this.controls.getObject().position.y += this.verticalVelocity * delta;
+    
+    if (this.controls.getObject().position.y < this.currentHeight) {
+      this.controls.getObject().position.y = this.currentHeight;
       this.verticalVelocity = 0;
       this.canJump = true;
     }
-  }
 
-  this.controls.getObject().position.y += this.verticalVelocity * delta;
-  
-  if (this.controls.getObject().position.y < this.currentHeight) {
-    this.controls.getObject().position.y = this.currentHeight;
-    this.verticalVelocity = 0;
-    this.canJump = true;
-  }
+    this.updateSlide(delta);
 
-  this.updateSlide(delta);
-
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
-  
-  this.camera.getWorldDirection(forward);
-  forward.y = 0;
-  forward.normalize();
-  
-  right.crossVectors(forward, this.camera.up).normalize();
-
-  const movement = new THREE.Vector3();
-  
-  if (this.moveForward) movement.add(forward);
-  if (this.moveBackward) movement.sub(forward);
-  if (this.moveRight) movement.add(right);
-  if (this.moveLeft) movement.sub(right);
-  
-  if (movement.length() > 0) {
-    movement.normalize();
-    const currentSpeed = this.getCurrentSpeed();
-    movement.multiplyScalar(currentSpeed * delta);
-  }
-
-  if (this.isSliding) {
-    const slideMovement = forward.clone();
-    slideMovement.multiplyScalar(this.slideSpeed * delta);
-    movement.copy(slideMovement);
-  }
-
-  if (movement.length() > 0) {
-    const currentPosition = this.controls.getObject().position.clone();
-    const desiredPosition = currentPosition.clone().add(movement);
-
-    const validPosition = this.collision.getValidPosition(currentPosition, desiredPosition, 0.5);
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
     
-    this.controls.getObject().position.x = validPosition.x;
-    this.controls.getObject().position.z = validPosition.z;
+    this.camera.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
+    
+    right.crossVectors(forward, this.camera.up).normalize();
+
+    const movement = new THREE.Vector3();
+    
+    if (this.moveForward) movement.add(forward);
+    if (this.moveBackward) movement.sub(forward);
+    if (this.moveRight) movement.add(right);
+    if (this.moveLeft) movement.sub(right);
+    
+    if (movement.length() > 0) {
+      movement.normalize();
+      const currentSpeed = this.getCurrentSpeed();
+      movement.multiplyScalar(currentSpeed * delta);
+    }
+
+    if (this.isSliding) {
+      const slideMovement = forward.clone();
+      slideMovement.multiplyScalar(this.slideSpeed * delta);
+      movement.copy(slideMovement);
+    }
+
+    if (movement.length() > 0) {
+      const currentPosition = this.controls.getObject().position.clone();
+      const desiredPosition = currentPosition.clone().add(movement);
+
+      const validPosition = this.collision.getValidPosition(currentPosition, desiredPosition, 0.5);
+      
+      this.controls.getObject().position.x = validPosition.x;
+      this.controls.getObject().position.z = validPosition.z;
+    }
   }
-}
 
   updateEnemies(delta) {
     if (this.isMultiplayer) return;
@@ -501,6 +516,50 @@ updateMovement(delta) {
     }
   }
 
+  takeDamage(damage, fromPlayer = null) {
+    if (this.isDead) return;
+    
+    this.health -= damage;
+    this.ui.updateHealth(this.health);
+    
+    if (this.health <= 0) {
+      this.die(fromPlayer);
+    }
+  }
+
+  die(killerName = null) {
+    this.isDead = true;
+    this.health = 0;
+    this.deaths++;
+    this.ui.updateKillsDeaths(this.kills, this.deaths);
+    this.ui.showDeathScreen(this.respawnTime);
+    this.respawnTimer = this.respawnTime;
+    
+    if (this.network) {
+      this.network.sendDeath(killerName);
+    }
+    
+    if (killerName) {
+      this.ui.showKillFeed(`You were killed by ${killerName}!`, 3000);
+      
+      if (this.network) {
+        this.gameModes.onPlayerKill(killerName, this.network.playerId);
+      }
+    }
+  }
+
+  respawn() {
+    this.isDead = false;
+    this.health = this.maxHealth;
+    this.ui.updateHealth(this.health);
+    this.ui.hideDeathScreen();
+    
+    this.gameModes.respawnPlayer();
+    
+    this.verticalVelocity = 0;
+    this.velocity.set(0, 0, 0);
+  }
+
   update(delta) {
     if (this.isDead) {
       this.respawnTimer -= delta;
@@ -517,6 +576,7 @@ updateMovement(delta) {
     this.updateMultiplayer(delta);
     this.weapons.update(delta);
     this.lighting.updateDynamicLighting(this.clock.getElapsedTime());
+    this.gameModes.update(delta);
     
     if (this.network) {
       this.network.update();
