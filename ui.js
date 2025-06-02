@@ -23,6 +23,13 @@ export class UISystem {
     this.respawnTimer = document.getElementById('respawn-timer');
     this.scoreboard = document.getElementById('scoreboard');
     this.playerList = document.getElementById('player-list');
+    this.gameMode = document.getElementById('game-mode');
+    this.gameTimer = document.getElementById('game-timer');
+    this.teamScores = document.getElementById('team-scores');
+    this.playerTeam = document.getElementById('player-team');
+    this.mapInfo = document.getElementById('map-info');
+    this.gameEndScreen = document.getElementById('game-end-screen');
+    this.gameEndMessage = document.getElementById('game-end-message');
     
     this.health = 100;
     this.maxHealth = 100;
@@ -263,6 +270,62 @@ export class UISystem {
       
       this.playerList.appendChild(row);
     });
+  }
+
+  updateGameMode(mode) {
+    const modeNames = {
+      'ffa': 'Free For All',
+      'tdm': 'Team Deathmatch'
+    };
+    if (this.gameMode) {
+      this.gameMode.textContent = modeNames[mode] || mode;
+    }
+  }
+
+  updateGameTimer(timeRemaining) {
+    if (this.gameTimer) {
+      const minutes = Math.floor(timeRemaining / 60);
+      const seconds = Math.floor(timeRemaining % 60);
+      this.gameTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+  }
+
+  updateTeamScores(redScore, blueScore) {
+    if (this.teamScores) {
+      this.teamScores.innerHTML = `
+        <span class="red-team">Red: ${redScore}</span>
+        <span class="blue-team">Blue: ${blueScore}</span>
+      `;
+    }
+  }
+
+  updateTeam(team) {
+    if (this.playerTeam) {
+      this.playerTeam.textContent = team ? `Team: ${team.toUpperCase()}` : '';
+      this.playerTeam.className = team ? `team-${team}` : '';
+    }
+  }
+
+  updateMapInfo(mapName) {
+    if (this.mapInfo) {
+      const mapNames = {
+        'warehouse': 'Warehouse',
+        'desert': 'Desert Canyon',
+        'urban': 'Urban District'
+      };
+      this.mapInfo.textContent = mapNames[mapName] || mapName;
+    }
+  }
+
+  showGameEnd(message) {
+    if (this.gameEndScreen && this.gameEndMessage) {
+      this.gameEndMessage.textContent = message;
+      this.gameEndScreen.style.display = 'block';
+      
+      setTimeout(() => {
+        this.gameEndScreen.style.display = 'none';
+      }, 8000);
+    }
   }
 
   update() {
