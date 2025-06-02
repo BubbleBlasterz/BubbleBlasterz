@@ -404,6 +404,72 @@
       .player-status.dead {
         color: #ff0000;
       }
+
+      #game-info {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+        color: white;
+        font-family: 'Arial Black', Arial, sans-serif;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        z-index: 100;
+      }
+      
+      #game-mode, #game-timer, #map-info {
+        background: rgba(0,0,0,0.7);
+        padding: 8px 15px;
+        border-radius: 5px;
+        border: 1px solid #00ff00;
+      }
+      
+      #team-scores {
+        display: flex;
+        gap: 10px;
+        background: rgba(0,0,0,0.7);
+        padding: 8px 15px;
+        border-radius: 5px;
+        border: 1px solid #00ff00;
+      }
+      
+      .red-team { color: #ff4444; }
+      .blue-team { color: #4444ff; }
+      
+      #player-team {
+        background: rgba(0,0,0,0.7);
+        padding: 8px 15px;
+        border-radius: 5px;
+        border: 1px solid #00ff00;
+      }
+      
+      .team-red { border-color: #ff4444 !important; color: #ff4444; }
+      .team-blue { border-color: #4444ff !important; color: #4444ff; }
+      
+      #game-end-screen {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        border: 3px solid #00ff00;
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        color: white;
+        font-family: 'Arial Black', Arial, sans-serif;
+        font-size: 24px;
+        z-index: 400;
+        display: none;
+      }
+      
+      #game-end-message {
+        font-size: 32px;
+        margin-bottom: 20px;
+        color: #00ff00;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
     </style>
   </head>
   <body>
@@ -516,10 +582,24 @@
         </div>
       </div>
 
+      <div id="game-info">
+        <div id="game-mode">Free For All</div>
+        <div id="game-timer">10:00</div>
+        <div id="map-info">Warehouse</div>
+        <div id="team-scores" style="display: none;"></div>
+        <div id="player-team"></div>
+      </div>
+      
+      <div id="game-end-screen">
+        <div id="game-end-message">Game Over!</div>
+        <div>Restarting in 10 seconds...</div>
+      </div>
+
       <!-- Controls -->
       <div id="controls">
         WASD: Move | Shift: Sprint/Slide | Ctrl: Crouch | Space: Jump<br>
-        LMB: Shoot (Hold for auto) | RMB: Zoom | R: Reload | 1-5: Switch Weapons | TAB: Scoreboard
+        LMB: Shoot | RMB: Zoom | R: Reload | 1-5: Switch Weapons<br>
+        TAB: Scoreboard | T: Switch Team | M: Change Map | G: Change Mode
       </div>
     </div>
 
