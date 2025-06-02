@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Bubble Blasterz</title>
+    <style>
+      body { 
+        margin: 0; 
+        overflow: hidden;
+        background: #000;
+        font-family: 'Arial Black', Arial, sans-serif;
+        user-select: none;
+      }
+      
+      #main-menu {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        padding: 30px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        z-index: 1000;
+      }
+      
+      #main-menu button {
+        display: block;
+        margin: 10px auto;
+        padding: 15px 30px;
+        font-size: 16px;
+        background: #333;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        min-width: 200px;
+      }
+      
+      #main-menu button:hover {
+        background: #555;
+      }
+      
+      #multiplayer-setup {
+        display: none;
+        margin-top: 20px;
+      }
+      
+      #multiplayer-setup input {
+        padding: 10px;
+        margin: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 14px;
+        width: 200px;
+      }
+      
+      #player-name-input {
+        margin-bottom: 20px;
+      }
+      
+      #player-name-input input {
+        width: 250px;
+      }
+      
+      #host-id-display {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.9);
+        color: #00ff00;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        z-index: 150;
+        display: none;
+        border: 2px solid #00ff00;
+        box-shadow: 0 0 10px rgba(0,255,0,0.3);
+        max-width: 250px;
+        word-break: break-all;
+      }
+      
+      #enemy-health {
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.9);
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        text-align: center;
+        font-size: 16px;
+        z-index: 100;
+        display: none;
+        border: 2px solid #ff0000;
+        min-width: 200px;
+      }
+      
+      .enemy-health-bar {
+        width: 180px;
+        height: 15px;
+        background: rgba(255,0,0,0.3);
+        border: 2px solid #fff;
+        border-radius: 8px;
+        margin: 8px auto;
+        overflow: hidden;
+      }
+      
+      .enemy-health-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+        transition: width 0.3s ease;
+      }
+      
+      #kill-feed {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        z-index: 100;
+        background: rgba(0,0,0,0.8);
+        padding: 10px 20px;
+        border-radius: 5px;
+        display: none;
+      }
+      
+      #health-container {
+        position: absolute;
+        bottom: 80px;
+        left: 50px;
+        width: 200px;
+        height: 20px;
+        background: rgba(255, 0, 0, 0.3);
+        border: 2px solid #fff;
+        border-radius: 10px;
+        z-index: 100;
+      }
+      
+      #health-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+        border-radius: 8px;
+        transition: width 0.3s ease;
+        width: 100%;
+      }
+      
+      #health-text {
+        position: absolute;
+        top: -25px;
+        left: 0;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+      
+      #score-container {
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        color: #ffff00;
+        font-size: 18px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        z-index: 100;
+        background: rgba(0,0,0,0.8);
+        padding: 10px 15px;
+        border-radius: 5px;
+      }
+      
+      #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #00ff00;
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 100;
+        pointer-events: none;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        transition: all 0.2s ease;
+      }
+      
+      #weapon-hud {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        color: white;
+        z-index: 100;
+        text-align: right;
+      }
+      
+      #weapon-name {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+      
+      #ammo-display {
+        font-size: 32px;
+        font-weight: bold;
+        color: #00ffff;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+      
+      #ammo-reserve {
+        font-size: 18px;
+        color: #cccccc;
+        margin-top: 5px;
+      }
+      
+      #reload-circle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        z-index: 200;
+        display: none;
+      }
+      
+      #reload-progress {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: conic-gradient(#00ff00 0deg, #00ff00 0deg, transparent 0deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        border: 3px solid rgba(255,255,255,0.5);
+      }
+      
+      #controls {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        color: rgba(255,255,255,0.7);
+        font-size: 11px;
+        z-index: 100;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      }
+      
+      #weapon-selector {
+        position: absolute;
+        bottom: 120px;
+        right: 30px;
+        z-index: 100;
+      }
+      
+      .weapon-slot {
+        display: block;
+        margin: 3px 0;
+        padding: 6px 10px;
+        background: rgba(0,0,0,0.6);
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 5px;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        min-width: 100px;
+        text-align: center;
+      }
+      
+      .weapon-slot.active {
+        border-color: #00ff00;
+        background: rgba(0,255,0,0.2);
+      }
+      
+      #zoom-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.8) 80%);
+        z-index: 50;
+        display: none;
+        pointer-events: none;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      #death-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,0,0,0.3);
+        z-index: 200;
+        display: none;
+        pointer-events: none;
+      }
+
+      #death-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 48px;
+        font-weight: bold;
+        text-shadow: 4px 4px 8px rgba(0,0,0,0.8);
+        text-align: center;
+      }
+
+      #scoreboard {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        border: 2px solid #00ff00;
+        border-radius: 10px;
+        min-width: 400px;
+        max-width: 600px;
+        z-index: 300;
+        display: none;
+        color: white;
+        font-family: 'Arial Black', Arial, sans-serif;
+      }
+      
+      #scoreboard-header {
+        background: rgba(0,255,0,0.2);
+        padding: 15px;
+        border-bottom: 2px solid #00ff00;
+        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      #scoreboard-header h3 {
+        margin: 0;
+        color: #00ff00;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+      
+      #toggle-scoreboard {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid #00ff00;
+        color: #00ff00;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      
+      #scoreboard-content {
+        padding: 20px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      
+      .scoreboard-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 15px;
+        padding: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+        align-items: center;
+      }
+      
+      .scoreboard-row.header {
+        background: rgba(255,255,255,0.1);
+        font-weight: bold;
+        color: #00ff00;
+        border-bottom: 2px solid #00ff00;
+      }
+      
+      .scoreboard-row.self {
+        background: rgba(0,255,0,0.2);
+        border: 1px solid #00ff00;
+        border-radius: 5px;
+      }
+      
+      .player-status {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      
+      .player-status.alive {
+        color: #00ff00;
+      }
+      
+      .player-status.dead {
+        color: #ff0000;
+      }
+
+      #game-info {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+        color: white;
+        font-family: 'Arial Black', Arial, sans-serif;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        z-index: 100;
+      }
+      
+      #game-mode, #game-timer, #map-info {
+        background: rgba(0,0,0,0.7);
+        padding: 8px 15px;
+        border-radius: 5px;
+        border: 1px solid #00ff00;
+      }
+      
+      #team-scores {
+        display: flex;
+        gap: 10px;
+        background: rgba(0,0,0,0.7);
+        padding: 8px 15px;
+        border-radius: 5px;
+        border: 1px solid #00ff00;
+      }
+      
+      .red-team { color: #ff4444; }
+      .blue-team { color: #4444ff; }
+      
+      #player-team {
+        background: rgba(0,0,0,0.7);
+        padding: 8px 15px;
+        border-radius: 5px;
+        border: 1px solid #00ff00;
+      }
+      
+      .team-red { border-color: #ff4444 !important; color: #ff4444; }
+      .team-blue { border-color: #4444ff !important; color: #4444ff; }
+      
+      #game-end-screen {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        border: 3px solid #00ff00;
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        color: white;
+        font-family: 'Arial Black', Arial, sans-serif;
+        font-size: 24px;
+        z-index: 400;
+        display: none;
+      }
+      
+      #game-end-message {
+        font-size: 32px;
+        margin-bottom: 20px;
+        color: #00ff00;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-B5Qt9EMX.js"></script>
+  </head>
+  <body>
+    <!-- Main Menu -->
+    <div id="main-menu">
+      <h1>Bubble Blasterz</h1>
+      
+      <div id="player-name-input">
+        <input type="text" id="player-name" placeholder="Enter your name" value="Player" maxlength="20">
+      </div>
+      
+      <button onclick="startSinglePlayer()">Singleplayer</button>
+      <button onclick="showMultiplayerSetup()">Multiplayer</button>
+      
+      <div id="multiplayer-setup">
+        <h3>Multiplayer Setup</h3>
+        <button onclick="hostGame()">Host Game</button>
+        <div>
+          <input type="text" id="host-id" placeholder="Enter Host ID">
+          <button onclick="joinGame()">Join Game</button>
+        </div>
+        <button onclick="hideMultiplayerSetup()">Back</button>
+      </div>
+    </div>
+
+    <!-- Game UI -->
+    <div id="game-ui" class="hidden">
+      <!-- Host ID Display (TOP RIGHT) -->
+      <div id="host-id-display">
+        <div>🎮 HOST ID:</div>
+        <div id="host-id-text"></div>
+        <div style="font-size: 12px; margin-top: 5px;">Share with friend to join!</div>
+      </div>
+
+      <!-- Kill Feed -->
+      <div id="kill-feed"></div>
+
+      <!-- Enemy Health -->
+      <div id="enemy-health">
+        <div id="enemy-name">Enemy Player</div>
+        <div class="enemy-health-bar">
+          <div class="enemy-health-fill" id="enemy-health-fill"></div>
+        </div>
+        <div id="enemy-health-text">100 HP</div>
+      </div>
+      
+      <!-- Health -->
+      <div id="health-container">
+        <div id="health-text">Health: <span id="health">100</span></div>
+        <div id="health-bar"></div>
+      </div>
+      
+      <!-- Score -->
+      <div id="score-container">
+        <div>Score: <span id="score">0</span></div>
+        <div>K/D: <span id="kills">0</span>/<span id="deaths">0</span></div>
+      </div>
+      
+      <!-- Crosshair -->
+      <div id="crosshair">⊕</div>
+      
+      <!-- Weapon HUD -->
+      <div id="weapon-hud">
+        <div id="weapon-name">Assault Rifle</div>
+        <div id="ammo-display"><span id="ammo-current">30</span></div>
+        <div id="ammo-reserve">/ <span id="ammo-total">30</span></div>
+      </div>
+      
+      <!-- Weapon Selector -->
+      <div id="weapon-selector">
+        <div class="weapon-slot active" id="weapon-1">1. AR</div>
+        <div class="weapon-slot" id="weapon-2">2. Shotgun</div>
+        <div class="weapon-slot" id="weapon-3">3. SMG</div>
+        <div class="weapon-slot" id="weapon-4">4. Sniper</div>
+        <div class="weapon-slot" id="weapon-5">5. LMG</div>
+      </div>
+      
+      <!-- Reload Circle -->
+      <div id="reload-circle">
+        <div id="reload-progress">
+          <span id="reload-text">R</span>
+        </div>
+      </div>
+      
+      <!-- Zoom Overlay -->
+      <div id="zoom-overlay"></div>
+
+      <!-- Death Screen -->
+      <div id="death-screen">
+        <div id="death-message">
+          <div>YOU DIED</div>
+          <div style="font-size: 24px; margin-top: 20px;">Respawning in <span id="respawn-timer">5</span>s</div>
+        </div>
+      </div>
+      
+      <!-- Scoreboard -->
+      <div id="scoreboard">
+        <div id="scoreboard-header">
+          <h3>SCOREBOARD</h3>
+          <button id="toggle-scoreboard">TAB</button>
+        </div>
+        <div id="scoreboard-content">
+          <div class="scoreboard-row header">
+            <span>Player</span>
+            <span>Score</span>
+            <span>K/D</span>
+            <span>Ping</span>
+          </div>
+          <div id="player-list"></div>
+        </div>
+      </div>
+
+      <div id="game-info">
+        <div id="game-mode">Free For All</div>
+        <div id="game-timer">10:00</div>
+        <div id="map-info">Warehouse</div>
+        <div id="team-scores" style="display: none;"></div>
+        <div id="player-team"></div>
+      </div>
+      
+      <div id="game-end-screen">
+        <div id="game-end-message">Game Over!</div>
+        <div>Restarting in 10 seconds...</div>
+      </div>
+
+      <!-- Controls -->
+      <div id="controls">
+        WASD: Move | Shift: Sprint/Slide | Ctrl: Crouch | Space: Jump<br>
+        LMB: Shoot | RMB: Zoom | R: Reload | 1-5: Switch Weapons<br>
+        TAB: Scoreboard | T: Switch Team | M: Change Map | G: Change Mode
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+    <script>
+      let game = null;
+
+      function getPlayerName() {
+        return document.getElementById('player-name').value.trim() || 'Player';
+      }
+
+      function startSinglePlayer() {
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('game-ui').classList.remove('hidden');
+      /assets/main-ByjSb4Dn.js'./main.js').then(module => {
+          game = new module.BubbleBlasterz(false, null, getPlayerName());
+        });
+      }
+
+      function showMultiplayerSetup() {
+        document.getElementById('multiplayer-setup').style.display = 'block';
+      }
+
+      function hideMultiplayerSetup() {
+        document.getElementById('multiplayer-setup').style.display = 'none';
+      }
+
+      async function hostGame() {
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('game-ui').classList.remove('hidden');
+        con/assets/main-ByjSb4Dn.js = await import('./main.js');
+        game = new module.BubbleBlasterz(true, null, getPlayerName());
+      }
+
+      async function joinGame() {
+        const hostId = document.getElementById('host-id').value.trim();
+        if (!hostId) {
+          alert('Please enter a Host ID');
+          return;
+        }
+        
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('game-ui').classList.remove('hidden');/assets/main-ByjSb4Dn.js const module = await import('./main.js');
+        game = new module.BubbleBlasterz(true, hostId, getPlayerName());
+      }
+    </script>
+  </body>
+</html>
