@@ -193,7 +193,8 @@ export class NetworkSystem {
       2: this.createSimpleShotgun(),
       3: this.createSimpleSMG(),
       4: this.createSimpleSniperRifle(),
-      5: this.createSimpleLMG()
+      5: this.createSimpleLMG(),
+      6: this.createSimpleSword()
     };
     
     Object.keys(weapons).forEach(weaponId => {
@@ -350,6 +351,23 @@ export class NetworkSystem {
     group.add(handle);
     
     return group;
+  }
+
+  createSimpleSword() {
+    const group = new THREE.Group();
+    const bladeGeometry = new THREE.BoxGeometry(0.05, 0.6, 0.05);
+    const bladeMaterial = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
+    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+    blade.position.set(0.15, 0.2, -0.22);
+    group.add(blade);
+    const handleGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8);
+    const handleMaterial = new THREE.MeshLambertMaterial({ color: 0x3b2f2f });
+    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+    handle.position.set(0.15, -0.2, -0.22);
+    group.add(handle);
+    this.model = group;
+    this.model.position.copy(this.getHipPosition());
+    this.model.rotation.copy(this.getHipRotation());
   }
 
   removePlayer(playerId) {
