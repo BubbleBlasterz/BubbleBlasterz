@@ -284,6 +284,7 @@ export class BubbleBlasterz {
         case 'Digit3': this.weapons.switchWeapon(3); break;
         case 'Digit4': this.weapons.switchWeapon(4); break;
         case 'Digit5': this.weapons.switchWeapon(5); break;
+        case 'Digit6': this.weapons.switchWeapon(6); break;
       }
     });
 
