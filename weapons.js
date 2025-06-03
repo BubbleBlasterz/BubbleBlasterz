@@ -12,7 +12,8 @@ export class WeaponSystem {
       2: new Shotgun(scene, camera),
       3: new SMG(scene, camera),
       4: new SniperRifle(scene, camera),
-      5: new LMG(scene, camera)
+      5: new LMG(scene, camera),
+      6: new Sword(scene, camera)
     };
     
     this.currentWeapon = 1;
@@ -61,6 +62,9 @@ export class WeaponSystem {
   }
 
   startZoom() {
+    if(this.getCurrentWeapon().zoomEnabled === false){
+      return;
+    }
     if (!this.isZooming && !this.zoomAnimating) {
       this.isZooming = true;
       this.zoomAnimating = true;
@@ -277,6 +281,7 @@ class BaseWeapon {
     this.lastShot = 0;
     this.isReloading = false;
     this.reloadStartTime = 0;
+    this.zoomEnabled = true;
   }
 
   createModel() {}
@@ -741,5 +746,67 @@ class LMG extends BaseWeapon {
     const position = this.camera.position.clone();
     
     return [this.createBullet(position, direction, this.spread)];
+  }
+}
+
+class Sword extends BaseWeapon {
+  constructor(scene, camera) {
+    super(scene, camera);
+    this.name = "Sword";
+    this.swingCooldown = 500;
+    this.lastSwing = 0;
+    this.damage = 50;
+    this.zoomEnabled = false;
+  }
+
+  canShoot(){
+    return false;
+  }
+
+  shoot() {
+    return [];
+  }
+
+  canReload() {
+    return false;
+  }
+
+  startReload() {}
+
+  update(delta) {}
+
+  swing() {
+    if (Date.now() - this.lastSwing >= this.swingCooldown) {
+      this.lastSwing = Date.now();
+
+      // hit detection
+    }
+  }
+
+  createModel() {
+    const group = new THREE.Group();
+    const bladeGeometry = new THREE.BoxGeometry(0.05, 0.6, 0.05);
+    const bladeMaterial = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
+    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+    blade.position.set(0.15, 0.2, -0.22);
+    group.add(blade);
+    const handleGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8);
+    const handleMaterial = new THREE.MeshLambertMaterial({ color: 0x3b2f2f });
+    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+    handle.position.set(0.15, -0.2, -0.22);
+    group.add(handle);
+    this.model = group;
+    this.model.position.copy(this.getHipPosition());
+    this.model.rotation.copy(this.getHipRotation());
+  }
+
+  createMuzzleFlash(){
+    this.muzzleFlash = null;
+  }
+
+  showMuzzleFlash() {}
+
+  createBullet(position, direction, spread = 0) {
+    return null;
   }
 }
